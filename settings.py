@@ -2,5 +2,5 @@
 #  коннекта в базе (если ее когда-нибудь понадобится прикрутить к этому сервису, настройки для очередей и обменников)
 BINANCE_BASE_URL = "https://api.binance.com"
 BINANCE_REQUEST_TIMOUT = 15.0
-BINANCE_REQUESTS_MAX_RETRIES = 15.0
+BINANCE_REQUESTS_MAX_RETRIES = 15
 BINANCE_PAUSE_ON_LIMIT  = 1.0

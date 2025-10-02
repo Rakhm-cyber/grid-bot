@@ -1,17 +1,12 @@
 from datetime import datetime, timedelta, timezone
+from src.common.constants_enums import BinanceInterval
 from src.clients.binance_client import BinanceClient
 
 client = BinanceClient()
 
-start = datetime.now(timezone.utc) - timedelta(days=2)
-points = client.get_rates(
-    start_dt=start,
-    interval="1h",
-    base_currency="BTC",
-    quote_currency="USDT",
+client.get_rates_and_save(
+    start_dt=datetime.now(timezone.utc) - timedelta(days=7),
+    interval='1m',
+    symbol="BTCUSDT",
+    filepath="data/binance/BTCUSDT_1m.csv",
 )
-
-client.to_csv(points, "exports/btcusdt_1h.csv")
-
-for p in points[:5]:
-    print(p.ts, p.close)

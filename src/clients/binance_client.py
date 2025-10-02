@@ -32,6 +32,7 @@ class BinanceClient:
             'User-Agent': 'rates-fetcher/1.0 (+binance client)'
         })
 
+
     @staticmethod
     def _datetime_to_ms(dt: datetime) -> int:
         if dt.tzinfo is None:
@@ -41,6 +42,59 @@ class BinanceClient:
     @staticmethod
     def _from_ms(ms: int) -> datetime:
         return datetime.fromtimestamp(ms / 1000, tz=timezone.utc)
+
+    @staticmethod
+    def _to_iso_utc(dt: datetime) -> str:
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
+
+    @staticmethod
+    def _ensure_dir(filepath: str) -> None:
+        import os
+        os.makedirs(os.path.dirname(os.path.abspath(filepath)) or ".", exist_ok=True)
+
+    @staticmethod
+    def _load_existing_csv(filepath: str) -> dict[int, tuple[str, float]]:
+        import os, csv
+        data: dict[int, tuple[str, float]] = {}
+        if not os.path.exists(filepath):
+            return data
+
+        with open(filepath, "r", newline="") as f:
+            reader = csv.reader(f)
+            header = next(reader, None)
+            def iter_rows():
+                if header is None:
+                    return reader
+                if header == ["ts_ms", "ts_iso", "close"]:
+                    return reader
+                yield header
+                yield from reader
+
+            for row in iter_rows():
+                if not row:
+                    continue
+                try:
+                    ts_ms = int(row[0])
+                    ts_iso = str(row[1])
+                    close = float(row[2])
+                except Exception:
+                    continue
+                data[ts_ms] = (ts_iso, close)
+        return data
+
+    @staticmethod
+    def _atomic_write_csv(filepath: str, rows: list[tuple[int, str, float]]) -> None:
+        import os, csv
+        tmp_path = f"{filepath}.tmp"
+        with open(tmp_path, "w", newline="") as f:
+            w = csv.writer(f)
+            w.writerow(["ts_ms", "ts_iso", "close"])
+            for ts_ms, ts_iso, close in rows:
+                w.writerow([ts_ms, ts_iso, close])
+        os.replace(tmp_path, filepath)
+
 
     def _request(self, path: str, params: dict) -> list:
         url = f"{settings.BINANCE_BASE_URL}{path}"
@@ -56,10 +110,11 @@ class BinanceClient:
             except Exception as e:
                 last_exc = e
                 time.sleep(0.25 * attempt)
-        raise RuntimeError(f"Binance request failed after {self._retries} attempts: {last_exc}")  # noqa: E501
+        raise RuntimeError(f"Binance request failed after {self._retries} attempts: {last_exc}")
 
     def _symbol(self, base: str, quote: str) -> str:
         return f"{base.upper()}{quote.upper()}"
+
 
     def get_rates(
         self,
@@ -71,6 +126,8 @@ class BinanceClient:
     ) -> List[RatePoint]:
         if interval not in INTERVAL_MS:
             raise ValueError(f"Unsupported interval '{interval}'. Allowed: {', '.join(INTERVAL_MS)}")
+
+        limit_per_call = min(int(limit_per_call), 1000)
 
         start_ms = self._datetime_to_ms(start_dt)
         now_ms = self._datetime_to_ms(datetime.now(timezone.utc))
@@ -85,7 +142,6 @@ class BinanceClient:
         cursor = start_ms
         while cursor < end_ms:
             chunk_end = min(cursor + step_ms * limit_per_call, end_ms)
-
             params = {
                 'symbol': symbol,
                 'interval': interval,
@@ -120,7 +176,22 @@ class BinanceClient:
         filepath: str,
         end_dt: Optional[datetime] = None,
     ) -> None:
+
         points = self.get_rates(start_dt, interval, symbol, end_dt=end_dt)
-        if not self._csv_client:
-            raise RuntimeError('CsvClient is not configured')
-        self._csv_client.save_rates(points, filepath)
+        if not points:
+            return
+
+        self._ensure_dir(filepath)
+
+        existing = self._load_existing_csv(filepath)
+
+        for p in points:
+            ts_ms = self._datetime_to_ms(p.ts)
+            ts_iso = self._to_iso_utc(p.ts)
+            existing[ts_ms] = (ts_iso, float(p.close))
+
+        ordered = sorted(existing.items(), key=lambda kv: kv[0])
+        rows: list[tuple[int, str, float]] = [(ts_ms, ts_iso, close) for ts_ms, (ts_iso, close) in ordered]
+
+        self._atomic_write_csv(filepath, rows)
+
