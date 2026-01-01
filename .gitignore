@@ -1,0 +1,11 @@
+# Data and outputs
+data/
+anal/output/
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# IDE
+.idea/
