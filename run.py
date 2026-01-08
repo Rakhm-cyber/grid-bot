@@ -12,10 +12,10 @@ for symbol in coins:
 
     try:
         client.get_rates_and_save(
-            start_dt=datetime.now(timezone.utc) - timedelta(days=365),
-            interval='1m',
+            start_dt=datetime.now(timezone.utc) - timedelta(days=35),
+            interval='15m',
             symbol=symbol,
-            filepath=f"data/binance/{symbol}_1m.csv",
+            filepath=f"data/binance/{symbol}_15m.csv",
         )
         print(f"{symbol} — готово.")
     except Exception as e:

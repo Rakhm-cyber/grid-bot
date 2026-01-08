@@ -26,6 +26,19 @@
 python -m anal.pairtool analyze --config anal/config.example.yaml
 ```
 
+Прогон всех пар из `coins.txt`:
+
+```bash
+python -m anal.pairtool analyze --config anal/config.example.yaml --coins-file coins.txt --jobs 4
+```
+
+Во время прогона выводится прогресс вида `[done/total] SYMBOL1/SYMBOL2 done`.
+
+Если установлен `tqdm`, будет отображаться progress bar для списка пар
+и отдельный progress bar для rolling-окон в одиночном запуске.
+
+Отключить прогресс можно флагом `--no-progress`.
+
 Минимальный пример из Python:
 
 ```bash
@@ -38,7 +51,7 @@ python anal/simpe_pair.py
 python -m anal.pairtool fetch --symbol1 BTCUSDT --symbol2 ETHUSDT --tf 1m --start 2024-01-01
 ```
 
-Сбор HTML-отчёта из уже выполненного прогона:
+Сбор HTML-отчёта из уже выполненного прогона (подробный, с пояснениями):
 
 ```bash
 python -m anal.pairtool report --run_id 20250101_120000

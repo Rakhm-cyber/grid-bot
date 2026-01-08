@@ -32,8 +32,8 @@ spread:
   hedge_method: ols
   include_intercept: true
 rolling:
-  window: 720
-  step: 1
+  window: 2880
+  step: 240
   min_periods: 500
 breaks:
   chow:

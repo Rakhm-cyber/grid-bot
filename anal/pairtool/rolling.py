@@ -38,10 +38,18 @@ def compute_rolling(
     step: int,
     min_periods: int,
     include_intercept: bool,
+    progress: bool = False,
 ) -> RollingResult:
     idx = log_y.index
     rows: List[Dict[str, float]] = []
-    for end in range(window, len(idx) + 1, step):
+    it = range(window, len(idx) + 1, step)
+    if progress:
+        try:
+            from tqdm import tqdm
+            it = tqdm(it, total=len(range(window, len(idx) + 1, step)), ncols=80, desc="Rolling")
+        except Exception:
+            pass
+    for end in it:
         start = end - window
         if end - start < min_periods:
             continue

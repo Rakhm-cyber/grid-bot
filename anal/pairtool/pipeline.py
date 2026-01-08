@@ -23,7 +23,7 @@ from .reporting import (
     plot_zscore,
     save_csv,
     save_json,
-    write_html_report,
+    write_html_report_from_result,
 )
 from .rolling import compute_rolling
 from .tests import (
@@ -53,6 +53,14 @@ def _setup_logging() -> None:
     handler.setFormatter(formatter)
     logger.addHandler(handler)
     logger.setLevel(logging.INFO)
+
+
+def _tqdm(total: int, desc: str):
+    try:
+        from tqdm import tqdm
+        return tqdm(total=total, ncols=80, desc=desc)
+    except Exception:
+        return None
 
 
 def _chow_test(y: pd.Series, x: pd.Series, grid_points: int) -> pd.DataFrame:
@@ -119,21 +127,34 @@ def _score_tradeability(result: Dict[str, Any]) -> Dict[str, Any]:
     return {"score": score, "decision": decision}
 
 
-def run_analysis(cfg: Config, start: Optional[str] = None, end: Optional[str] = None) -> Dict[str, Any]:
+def run_analysis(
+    cfg: Config,
+    start: Optional[str] = None,
+    end: Optional[str] = None,
+    progress: bool = False,
+) -> Dict[str, Any]:
     _setup_logging()
+    stage_bar = _tqdm(total=6, desc="Pipeline") if progress else None
     logger.info("Loading data...")
     y = load_series(cfg, cfg.symbol1, start=start, end=end).df
     x = load_series(cfg, cfg.symbol2, start=start, end=end).df
+    if stage_bar:
+        stage_bar.update(1)
+        stage_bar.close()
 
     logger.info("Aligning and transforming...")
     aligned = align_and_transform(cfg, y, x)
     df = aligned.df
     if df.empty:
         raise ValueError("No overlapping data after alignment")
+    if stage_bar:
+        stage_bar.update(1)
 
     logger.info("Building spread model...")
     spread_model = build_spread(df["log_y"], df["log_x"], cfg.include_intercept)
     df["spread"] = spread_model.spread
+    if stage_bar:
+        stage_bar.update(1)
 
     logger.info("Running tests...")
     static_tests: Dict[str, Any] = {
@@ -191,6 +212,8 @@ def run_analysis(cfg: Config, start: Optional[str] = None, end: Optional[str] = 
         static_tests["causality"]["granger"] = granger_causality(
             df["returns_y"], df["returns_x"], cfg.granger_max_lag
         )
+    if stage_bar:
+        stage_bar.update(1)
 
     logger.info("Rolling metrics...")
     rolling_res = compute_rolling(
@@ -203,10 +226,21 @@ def run_analysis(cfg: Config, start: Optional[str] = None, end: Optional[str] = 
         cfg.rolling_step,
         cfg.rolling_min_periods,
         cfg.include_intercept,
+        progress=progress,
     )
+    if stage_bar:
+        stage_bar.update(1)
 
     logger.info("Break tests...")
     breaks = _chow_test(df["log_y"], df["log_x"], cfg.chow_grid_points) if cfg.chow_enabled else pd.DataFrame()
+    if not breaks.empty:
+        breaks = breaks.copy()
+        breaks["break_time"] = (
+            pd.to_datetime(breaks["break_time"], utc=True, errors="coerce")
+            .dt.strftime("%Y-%m-%dT%H:%M:%SZ")
+        )
+    if stage_bar:
+        stage_bar.update(1)
 
     warnings = []
     if len(df) < cfg.rolling_min_periods:
@@ -273,13 +307,7 @@ def run_analysis(cfg: Config, start: Optional[str] = None, end: Optional[str] = 
 
     if "html" in cfg.output_formats:
         paths.html_report = output_root / "report.html"
-        write_html_report(paths.html_report, cfg.report_title, {
-            "symbols": f"{cfg.symbol1}/{cfg.symbol2}",
-            "timeframe": cfg.timeframe,
-            "nobs": str(len(df)),
-            "score": str(result["tradeability"]["score"]),
-            "decision": result["tradeability"]["decision"],
-        })
+        write_html_report_from_result(paths.html_report, cfg.report_title, result)
 
     logger.info("Done. Output: %s", output_root)
     return result

@@ -18,6 +18,8 @@ class SpreadModel:
 
 
 def _corr_with_pvalues(x: pd.Series, y: pd.Series, method: str) -> Dict[str, float]:
+    # Коэффициент корреляции и p-value для линейной/монотонной связи:
+    # Pearson — линейная, Spearman/Kendall — монотонная.
     if method == "pearson":
         r, p = stats.pearsonr(x, y)
     elif method == "spearman":
@@ -30,10 +32,14 @@ def _corr_with_pvalues(x: pd.Series, y: pd.Series, method: str) -> Dict[str, flo
 
 
 def correlations(x: pd.Series, y: pd.Series, methods: List[str]) -> Dict[str, Dict[str, float]]:
+    # Пакетный расчет корреляций с p-value для нескольких методов,
+    # чтобы сравнивать разные типы зависимости.
     return {m: _corr_with_pvalues(x, y, m) for m in methods}
 
 
 def cross_correlation(x: pd.Series, y: pd.Series, max_lag: int = 20) -> Dict[str, float]:
+    # Максимальная по модулю кросс-корреляция на сетке лагов.
+    # Полезно видеть, есть ли сдвиг по времени между рядами.
     x = x - x.mean()
     y = y - y.mean()
     lags = range(-max_lag, max_lag + 1)
@@ -53,6 +59,8 @@ def cross_correlation(x: pd.Series, y: pd.Series, max_lag: int = 20) -> Dict[str
 
 
 def adf_test(series: pd.Series) -> Dict[str, float]:
+    # ADF-тест на единичный корень (стационарность).
+    # Низкий p-value => ряд стационарен.
     res = stattools.adfuller(series.dropna(), autolag="AIC")
     return {
         "stat": float(res[0]),
@@ -64,6 +72,8 @@ def adf_test(series: pd.Series) -> Dict[str, float]:
 
 
 def kpss_test(series: pd.Series) -> Dict[str, float]:
+    # KPSS-тест стационарности (константа в регрессии).
+    # Низкий p-value => ряд НЕстационарен (обратная логика к ADF).
     res = stattools.kpss(series.dropna(), regression="c", nlags="auto")
     return {
         "stat": float(res[0]),
@@ -74,6 +84,8 @@ def kpss_test(series: pd.Series) -> Dict[str, float]:
 
 
 def pp_test(series: pd.Series) -> Optional[Dict[str, float]]:
+    # Phillips-Perron тест на единичный корень (если доступен).
+    # Альтернатива ADF с другой устойчивостью к автокорреляции.
     try:
         from statsmodels.tsa.stattools import phillips_perron
     except Exception:
@@ -85,6 +97,8 @@ def pp_test(series: pd.Series) -> Optional[Dict[str, float]]:
 
 
 def engle_granger(y: pd.Series, x: pd.Series, include_intercept: bool) -> Dict[str, float]:
+    # Engle-Granger тест коинтеграции (ADF по остаткам OLS).
+    # Проверяет, существует ли стабильный спред между двумя рядами.
     X = sm.add_constant(x) if include_intercept else x.to_frame("x")
     model = sm.OLS(y, X).fit()
     alpha = float(model.params["const"]) if include_intercept else 0.0
@@ -103,6 +117,8 @@ def engle_granger(y: pd.Series, x: pd.Series, include_intercept: bool) -> Dict[s
 
 
 def johansen(y: pd.Series, x: pd.Series) -> Optional[Dict[str, List[float]]]:
+    # Johansen тест коинтеграции (trace / max-eigen статистики).
+    # Позволяет оценить число коинтеграционных связей.
     try:
         from statsmodels.tsa.vector_ar.vecm import coint_johansen
     except Exception:
@@ -118,6 +134,8 @@ def johansen(y: pd.Series, x: pd.Series) -> Optional[Dict[str, List[float]]]:
 
 
 def build_spread(y: pd.Series, x: pd.Series, include_intercept: bool) -> SpreadModel:
+    # Линейный хедж через OLS для построения спреда:
+    # это базовая модель "y ~ alpha + beta*x".
     X = sm.add_constant(x) if include_intercept else x.to_frame("x")
     model = sm.OLS(y, X).fit()
     alpha = float(model.params["const"]) if include_intercept else 0.0
@@ -130,19 +148,23 @@ def build_spread(y: pd.Series, x: pd.Series, include_intercept: bool) -> SpreadM
 
 
 def half_life(spread: pd.Series) -> Optional[float]:
+    # Half-life из скорости возврата к среднему (AR(1)):
+    # сколько баров нужно, чтобы отклонение сократилось вдвое.
     s = spread.dropna()
     if len(s) < 5:
         return None
     delta = s.diff().dropna()
     lagged = s.shift(1).dropna().loc[delta.index]
     model = sm.OLS(delta, sm.add_constant(lagged)).fit()
-    phi = float(model.params[1])
+    phi = float(model.params.iloc[1])
     if 1 + phi <= 0:
         return None
     return float(-np.log(2) / np.log(1 + phi))
 
 
 def hurst_exponent(series: pd.Series, max_lag: int = 100) -> Optional[float]:
+    # Экспонента Херста через наклон на log-log лагах:
+    # H < 0.5 — mean reversion, H ~ 0.5 — случайное блуждание, H > 0.5 — тренд.
     s = series.dropna().values
     if len(s) < max_lag + 2:
         return None
@@ -153,6 +175,8 @@ def hurst_exponent(series: pd.Series, max_lag: int = 100) -> Optional[float]:
 
 
 def normality_tests(spread: pd.Series, returns_y: pd.Series, returns_x: pd.Series, tests: List[str]) -> Dict[str, Dict[str, float]]:
+    # Диагностика нормальности и сходства распределений:
+    # полезно понять, насколько предположения нормальности валидны.
     out: Dict[str, Dict[str, float]] = {}
     if "jarque_bera" in tests:
         jb = stats.jarque_bera(spread.dropna())
@@ -171,6 +195,8 @@ def normality_tests(spread: pd.Series, returns_y: pd.Series, returns_x: pd.Serie
 
 
 def granger_causality(returns_y: pd.Series, returns_x: pd.Series, max_lag: int) -> Dict[str, Dict[str, float]]:
+    # F-тесты причинности Грейнджера до заданного лага:
+    # показывает, улучшает ли один ряд прогноз другого.
     data = pd.concat([returns_y, returns_x], axis=1).dropna()
     res = stattools.grangercausalitytests(data, max_lag, verbose=False)
     out: Dict[str, Dict[str, float]] = {}
