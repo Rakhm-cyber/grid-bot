@@ -4,9 +4,19 @@ from src.clients.binance_client import BinanceClient
 
 client = BinanceClient()
 
-client.get_rates_and_save(
-    start_dt=datetime.now(timezone.utc) - timedelta(days=7),
-    interval='1m',
-    symbol="BTCUSDT",
-    filepath="data/binance/BTCUSDT_1m.csv",
-)
+with open("coins.txt", "r", encoding="utf-8") as f:
+    coins = [line.strip() for line in f if line.strip()]  # убираем пустые строки и пробелы
+
+for symbol in coins:
+    print(f"Обработка {symbol}...")
+
+    try:
+        client.get_rates_and_save(
+            start_dt=datetime.now(timezone.utc) - timedelta(days=35),
+            interval='15m',
+            symbol=symbol,
+            filepath=f"data/binance/{symbol}_15m.csv",
+        )
+        print(f"{symbol} — готово.")
+    except Exception as e:
+        print(f"Ошибка при обработке {symbol}: {e}")
