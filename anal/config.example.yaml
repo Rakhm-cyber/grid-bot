@@ -1,0 +1,46 @@
+symbols:
+  symbol1: BTCUSDT
+  symbol2: ETHUSDT
+timeframe: 1m
+data_source: csv
+paths:
+  input: data/binance
+  output: anal/output
+preprocessing:
+  price_field: close
+  use_log_prices: true
+  winsorize:
+    enabled: true
+    limits: [0.001, 0.999]
+  outliers:
+    method: zscore
+    threshold: 6
+  missing:
+    strategy: drop
+tests:
+  correlations: [pearson, spearman, kendall]
+  stationarity: [adf, kpss, pp]
+  cointegration:
+    engle_granger: true
+    johansen: false
+  normality: [jarque_bera, anderson_darling, ks]
+  causality:
+    granger:
+      enabled: true
+      max_lag: 10
+spread:
+  hedge_method: ols
+  include_intercept: true
+rolling:
+  window: 2880
+  step: 240
+  min_periods: 500
+breaks:
+  chow:
+    enabled: true
+    grid_points: 20
+  bai_perron: false
+reporting:
+  output_formats: [json, csv, html]
+  plots: true
+  title: Pair Analytics Report
