@@ -16,7 +16,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from anal.pairtool.tests import build_spread, half_life, hurst_exponent
+from anal.pairtool.tests import build_spread, half_life, hurst_exponent, johansen
 
 
 # Константы времени и настройки данных:
@@ -50,8 +50,9 @@ def _read_returns(data_dir: Path, symbol: str) -> pd.DataFrame:
         raise FileNotFoundError(f"Missing data file: {path}")
     df = pd.read_csv(path, usecols=["ts_ms", "close"])
     df = df.dropna(subset=["ts_ms", "close"]).sort_values("ts_ms")
-    df["returns"] = df["close"].pct_change()
-    return df[["ts_ms", "close", "returns"]].dropna()
+    returns = df["close"].pct_change().fillna(0.0)
+    df["returns"] = (1.0 + returns).cumprod()
+    return df[["ts_ms", "close", "returns"]]
 
 
 def _corr_window(
@@ -86,6 +87,26 @@ def _coint_pvalue(df1: pd.DataFrame, df2: pd.DataFrame, start_ms: int, end_ms: i
     return float(pvalue)
 
 
+def _johansen_pass(df1: pd.DataFrame, df2: pd.DataFrame, start_ms: int, end_ms: int) -> float:
+    # Johansen: pass if trace stat exceeds 95% critical value for rank=0.
+    w1 = df1[(df1["ts_ms"] >= start_ms) & (df1["ts_ms"] <= end_ms)]
+    w2 = df2[(df2["ts_ms"] >= start_ms) & (df2["ts_ms"] <= end_ms)]
+    if w1.empty or w2.empty:
+        return np.nan
+    merged = w1.merge(w2, on="ts_ms", how="inner", suffixes=("_1", "_2"))
+    if len(merged) < 5:
+        return np.nan
+    try:
+        res = johansen(np.log(merged["close_1"]), np.log(merged["close_2"]))
+    except Exception:
+        return np.nan
+    if not res:
+        return np.nan
+    trace_stat = res["trace_stat"][0]
+    trace_crit = res["trace_crit"][0]
+    return float(trace_stat > trace_crit)
+
+
 def _month_spread_metrics(
     df1: pd.DataFrame, df2: pd.DataFrame, start_ms: int, end_ms: int, z_band: float
 ) -> tuple[float, float, float]:
@@ -100,11 +121,7 @@ def _month_spread_metrics(
     merged = w1.merge(w2, on="ts_ms", how="inner", suffixes=("_1", "_2"))
     if len(merged) < 5:
         return np.nan, np.nan, np.nan
-    log_1 = np.log(merged["close_1"])
-    log_2 = np.log(merged["close_2"])
-    # Спред строим через OLS-хедж:
-    # spread = log(y) - (alpha + beta * log(x)).
-    spread_model = build_spread(log_1, log_2, include_intercept=True)
+    spread_model = build_spread(merged["close_1"], merged["close_2"], include_intercept=True)
     spread = spread_model.spread.dropna()
     hl = half_life(spread)
     hurst = hurst_exponent(spread)
@@ -195,6 +212,7 @@ def main() -> int:
                 "coint_p_week3": _coint_pvalue(df1, df2, *win["week3"]),
                 "coint_p_week4": _coint_pvalue(df1, df2, *win["week4"]),
                 "coint_p_month": _coint_pvalue(df1, df2, *win["month"]),
+                "johansen_pass_month": _johansen_pass(df1, df2, *win["month"]),
                 "half_life_month": hl,
                 "hurst_month": hurst,
                 "zscore_in_band_month": z_pct,
@@ -218,6 +236,7 @@ def main() -> int:
             "coint_p_week3",
             "coint_p_week4",
             "coint_p_month",
+            "johansen_pass_month",
             "half_life_month",
             "hurst_month",
             "zscore_in_band_month",
@@ -259,9 +278,13 @@ def main() -> int:
 
         s_k = _clip01((kendall_med - 0.30) / 0.40)
         s_c_log = _clip01((logp - 1.0) / 3.0)
+        joh = float(row["johansen_pass_month"]) if not np.isnan(row["johansen_pass_month"]) else np.nan
         s_c = np.nan
         if not np.isnan(s_c_log) and not np.isnan(pass_rate):
-            s_c = float(0.5 * s_c_log + 0.5 * pass_rate)
+            if not np.isnan(joh):
+                s_c = float(0.4 * s_c_log + 0.4 * pass_rate + 0.2 * joh)
+            else:
+                s_c = float(0.5 * s_c_log + 0.5 * pass_rate)
 
         hl = float(row["half_life_month"]) if not np.isnan(row["half_life_month"]) else np.nan
         hurst = float(row["hurst_month"]) if not np.isnan(row["hurst_month"]) else np.nan

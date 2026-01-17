@@ -10,3 +10,4 @@ __pycache__/
 # IDE
 .idea/
 data/binance/BTCUSDT_1m.csv
+okx_pair_bot/credentials.yaml

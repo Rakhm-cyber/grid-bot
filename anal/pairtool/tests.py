@@ -134,17 +134,12 @@ def johansen(y: pd.Series, x: pd.Series) -> Optional[Dict[str, List[float]]]:
 
 
 def build_spread(y: pd.Series, x: pd.Series, include_intercept: bool) -> SpreadModel:
-    # Линейный хедж через OLS для построения спреда:
-    # это базовая модель "y ~ alpha + beta*x".
-    X = sm.add_constant(x) if include_intercept else x.to_frame("x")
-    model = sm.OLS(y, X).fit()
-    alpha = float(model.params["const"]) if include_intercept else 0.0
-    if include_intercept:
-        beta = float(model.params.drop("const").iloc[0])
-    else:
-        beta = float(model.params.iloc[0])
-    spread = y - (alpha + beta * x)
-    return SpreadModel(alpha=alpha, beta=beta, spread=spread)
+    # Спред строим как накопленный эффект разницы доходностей:
+    # spread = cumprod(1 + (ret_y - ret_x)).
+    returns_y = y.pct_change()
+    returns_x = x.pct_change()
+    spread = (returns_y - returns_x).fillna(0.0).add(1.0).cumprod()
+    return SpreadModel(alpha=0.0, beta=1.0, spread=spread)
 
 
 def half_life(spread: pd.Series) -> Optional[float]:
