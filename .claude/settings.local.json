@@ -1,0 +1,32 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dir:*)",
+      "Bash(wc:*)",
+      "Bash(.venvScriptspython.exe -m pytest tests/ -v --tb=short)",
+      "Bash(\".venv\\\\Scripts\\\\python.exe\" -m pytest tests/ -v --tb=short)",
+      "Bash(\".venv\\\\Scripts\\\\pip.exe\" install pytest -q)",
+      "Bash(\".venv\\\\Scripts\\\\python.exe\" -m pytest tests/test_data.py::TestAtomicWriteCsv::test_write_and_read_back -v --tb=long)",
+      "Bash(\".venv\\\\Scripts\\\\python.exe\" -c \"\nfrom src.clients.binance_client import BinanceClient\nimport tempfile, os\n\nd = tempfile.mkdtemp\\(\\)\nfp = os.path.join\\(d, ''test.csv''\\)\nBinanceClient._atomic_write_csv\\(fp, [\\(1000, ''2024-01-01T00:00:00Z'', 42000.0\\)]\\)\n\n# read raw\nwith open\\(fp, ''r''\\) as f:\n    print\\(''RAW:'', repr\\(f.read\\(\\)\\)\\)\n\nloaded = BinanceClient._load_existing_csv\\(fp\\)\nprint\\(''LOADED:'', loaded\\)\n\")",
+      "Bash(\".venv\\\\Scripts\\\\python.exe\" -c:*)",
+      "Bash(python:*)",
+      "Bash(pip install:*)",
+      "Bash(ls -la \"C:\\\\Users\\\\ruslan.chibirov.INSIDE\\\\Desktop\\\\grid_bot\\\\anal\"\" 2>/dev/null || echo \"Checking directory structure \")",
+      "Bash(head:*)",
+      "Bash(del \"C:\\\\Users\\\\ruslan.chibirov.INSIDE\\\\Desktop\\\\grid_bot\\\\okx_pair_bot\\\\bot.py\")",
+      "Bash(taskkill:*)",
+      "Bash(wmic process where \"commandline like ''%main.py%''\" get processid)",
+      "Bash(wmic process:*)",
+      "Bash(git checkout:*)",
+      "Bash(for branch in dev remotes/origin/dev remotes/origin/dimir remotes/origin/mellllllllllllllllla)",
+      "Bash(do echo \"=== $branch ===\")",
+      "Bash(git ls-tree:*)",
+      "Bash(done)",
+      "Bash(git fsck:*)",
+      "Bash(vssadmin list shadows)",
+      "Bash(powershell:*)",
+      "Bash(decompyle3:*)",
+      "Bash(uncompyle6:*)"
+    ]
+  }
+}

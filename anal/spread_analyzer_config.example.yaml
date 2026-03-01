@@ -1,0 +1,35 @@
+coins_file: coins.txt
+data_dir: data/binance
+output_dir: anal/output
+timeframe: 1h
+history_days: 365
+auto_fetch_data: true
+horizon_days: 7
+rolling_window_days: 30
+rolling_step_days: 7
+stop_sigma: 3.5
+monte_carlo_enabled: true
+monte_carlo_paths: 10000
+bootstrap_block_bars: 24
+max_pairs: 0
+no_pdf: false
+seed: 42
+
+engle_granger_alpha_adj: 0.001
+adf_alpha_adj: 0.001
+kpss_alpha: 0.05
+beta_adf_alpha: 0.05
+beta_rel_std_max: 0.10
+half_life_mean_max_days: 3.0
+half_life_p95_max_days: 4.0
+stationary_weeks_min_pct: 90.0
+reliability_min_pct: 95.0
+reliability_sss_pct: 99.0
+max_dev_sigma: 4.0
+unique_ratio_min_pct: 70.0
+stress_revert_days: 3
+
+score_sss_min: 98.0
+score_s_min: 90.0
+score_conditional_min: 80.0
+critical_reliability_fail_pct: 80.0

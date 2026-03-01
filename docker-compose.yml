@@ -1,0 +1,28 @@
+version: "3.9"
+
+services:
+  pipeline:
+    build: .
+    command: python pipeline.py --full --dry-run --notify
+    volumes:
+      - ./data:/app/data
+      - ./okx_pair_bot/credentials.yaml:/app/okx_pair_bot/credentials.yaml:ro
+      - ./okx_pair_bot/trades.db:/app/okx_pair_bot/trades.db
+    environment:
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-}
+      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID:-}
+
+  bot:
+    build: .
+    command: python -m okx_pair_bot.bot
+    ports:
+      - "8099:8099"
+    volumes:
+      - ./data:/app/data
+      - ./okx_pair_bot/credentials.yaml:/app/okx_pair_bot/credentials.yaml:ro
+      - ./okx_pair_bot/trades.db:/app/okx_pair_bot/trades.db
+    environment:
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-}
+      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID:-}
+    depends_on:
+      - pipeline

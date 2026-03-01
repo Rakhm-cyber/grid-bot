@@ -5,9 +5,30 @@ anal/output/
 # Python
 __pycache__/
 *.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
 .pytest_cache/
+.venv/
+venv/
 
 # IDE
 .idea/
-data/binance/BTCUSDT_1m.csv
+.vscode/
+*.swp
+*.swo
+
+# Credentials & secrets
 okx_pair_bot/credentials.yaml
+.env
+*.secret
+
+# Logs & DB
+*.log
+*.db
+*.sqlite3
+
+# OS
+.DS_Store
+Thumbs.db

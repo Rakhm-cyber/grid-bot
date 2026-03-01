@@ -1,0 +1,42 @@
+dry_run: true
+use_demo: false
+leverage: 10
+hold_minutes: 0
+stop_loss_pct: 0.1
+trailing_stop_pct: 0.0
+target_profit_pct: 0.0
+max_cycles: 0
+check_interval_seconds: 2
+cooldown_seconds: 10
+grid:
+  spread_min: 1.6548521294282088
+  spread_max: 2.27906657996736
+  levels: 15
+  max_position_steps: 5
+  per_step_usdt: 50.0
+  beta: 1.0
+  refresh_seconds: 10
+  order_timeout_seconds: 180
+  ratio_mode: big_over_small
+plot:
+  enabled: true
+  max_points: 2000
+  host: 127.0.0.1
+  port: 8099
+  refresh_ms: 1000
+  scale: 1
+  auto_range: true
+  history_days: 1
+  history_timeframe: 1m
+  update_seconds: 60
+pairs:
+- long: ADA
+  short: XLM
+- long: AVAX
+  short: UNI
+- long: UNI
+  short: ICP
+- long: UNI
+  short: CRV
+- long: UNI
+  short: NEAR

@@ -24,10 +24,10 @@ from anal.pairtool.tests import build_spread, half_life, hurst_exponent, johanse
 # ZSCORE_BAND задает коридор для доли времени в пределах |z| <= band,
 # HL_MIN/HL_MAX — диапазон для нормализации half-life в скоринге.
 MS_IN_DAY = 24 * 60 * 60 * 1000
-TF_SUFFIX = "15m"
+TF_SUFFIX = "1m"
 ZSCORE_BAND = 1.0
-HL_MIN = 20.0
-HL_MAX = 800.0
+HL_MIN = 300.0    # ~5 hours in 1m bars  (was 20 for 15m)
+HL_MAX = 12000.0  # ~8.3 days in 1m bars (was 800 for 15m)
 
 
 def _read_coins(path: Path) -> list[str]:

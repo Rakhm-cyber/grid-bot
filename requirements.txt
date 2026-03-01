@@ -1,10 +1,26 @@
+# Core analytics
 numpy
 pandas
 scipy
 statsmodels
 matplotlib
+
+# Config & data
 pyyaml
 requests
 tqdm
+
+# Excel export
 openpyxl
 xlsxwriter
+
+# Trading bot (OKX)
+ccxt>=4.0.0
+python-dotenv
+
+# Optional: chart export for equity curve
+plotly
+
+# Dev / testing
+pytest
+ruff

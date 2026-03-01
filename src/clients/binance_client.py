@@ -66,9 +66,11 @@ class BinanceClient:
             header = next(reader, None)
             def iter_rows():
                 if header is None:
-                    return reader
+                    yield from reader
+                    return
                 if header == ["ts_ms", "ts_iso", "close"]:
-                    return reader
+                    yield from reader
+                    return
                 yield header
                 yield from reader
 
@@ -95,6 +97,62 @@ class BinanceClient:
                 w.writerow([ts_ms, ts_iso, close])
         os.replace(tmp_path, filepath)
 
+    # ── Валидация данных ──────────────────────────────────────────────
+
+    @staticmethod
+    def _validate_data(
+        data: dict[int, tuple[str, float]],
+        interval: str,
+        symbol: str,
+    ) -> dict[int, tuple[str, float]]:
+        """Валидирует и чистит данные: дубликаты, нулевые/отрицательные цены, пропуски."""
+        if not data:
+            return data
+
+        step_ms = INTERVAL_MS.get(interval)
+        if step_ms is None:
+            return data
+
+        # 1. Удаляем записи с невалидными ценами (нулевые или отрицательные)
+        bad_prices = {ts for ts, (_, close) in data.items() if close <= 0}
+        if bad_prices:
+            print(f"  [валидация] {symbol}: удалено {len(bad_prices)} свечей с невалидной ценой (<=0)")
+            for ts in bad_prices:
+                del data[ts]
+
+        if not data:
+            return data
+
+        # 2. Дубликаты по ts_ms — dict по определению не содержит дубликатов ключей,
+        #    но при загрузке из CSV последнее значение перезаписывает предыдущие,
+        #    так что дубликаты уже схлопнуты. Сообщаем, что данные чистые.
+
+        # 3. Проверяем пропуски (gap > 3x интервала)
+        sorted_ts = sorted(data.keys())
+        gap_threshold = step_ms * 3
+        gaps: list[tuple[int, int, int]] = []  # (start_ts, end_ts, missing_count)
+
+        for i in range(1, len(sorted_ts)):
+            diff = sorted_ts[i] - sorted_ts[i - 1]
+            if diff > gap_threshold:
+                missing_candles = (diff // step_ms) - 1
+                gaps.append((sorted_ts[i - 1], sorted_ts[i], missing_candles))
+
+        if gaps:
+            total_missing = sum(g[2] for g in gaps)
+            print(f"  [валидация] {symbol}: обнаружено {len(gaps)} пропусков, ~{total_missing} свечей отсутствует")
+            # показываем до 5 самых больших пропусков
+            gaps_sorted = sorted(gaps, key=lambda g: g[2], reverse=True)
+            for start_ts, end_ts, count in gaps_sorted[:5]:
+                start_iso = datetime.fromtimestamp(start_ts / 1000, tz=timezone.utc).isoformat()
+                end_iso = datetime.fromtimestamp(end_ts / 1000, tz=timezone.utc).isoformat()
+                print(f"    пропуск: {start_iso} -> {end_iso} (~{count} свечей)")
+        else:
+            print(f"  [валидация] {symbol}: пропусков не обнаружено, данные непрерывные")
+
+        return data
+
+    # ── Запросы к API ─────────────────────────────────────────────────
 
     def _request(self, path: str, params: dict) -> list:
         url = f"{settings.BINANCE_BASE_URL}{path}"
@@ -190,8 +248,10 @@ class BinanceClient:
             ts_iso = self._to_iso_utc(p.ts)
             existing[ts_ms] = (ts_iso, float(p.close))
 
+        # валидация: пропуски, невалидные цены
+        existing = self._validate_data(existing, interval, symbol)
+
         ordered = sorted(existing.items(), key=lambda kv: kv[0])
         rows: list[tuple[int, str, float]] = [(ts_ms, ts_iso, close) for ts_ms, (ts_iso, close) in ordered]
 
         self._atomic_write_csv(filepath, rows)
-

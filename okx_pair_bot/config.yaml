@@ -1,0 +1,97 @@
+exchange: okx
+api_key: "${OKX_API_KEY}"
+api_secret: "${OKX_SECRET_KEY}"
+passphrase: "${OKX_PASSPHRASE}"
+
+# Торгуемые пары (задаются здесь или через --base/--quote при запуске)
+symbols:
+  base: "ARBUSDT"       # первый инструмент (perpetual futures)
+  quote: "ATOMUSDT"     # второй инструмент (perpetual futures)
+  type: perpetual
+
+capital: 1000.0          # рабочий капитал в USDT
+
+# ─── Сессия ────────────────────────────────────────────────────────────────
+target_profit_pct: 5.0           # целевая прибыль (%) — проверяется на 5-й день
+max_exit_loss_pct: 1.0           # допустимый убыток при завершении на 7-й день (%)
+manual_stop_action: market_close # при ручной остановке — закрывать по рынку
+
+# ─── Индикаторы ────────────────────────────────────────────────────────────
+base_timeframe: "1h"             # основной таймфрейм
+ema_period: 20                   # период EMA (количество свечей base_timeframe)
+use_hl2_ema: true                # использовать (high+low)/2 для расчёта EMA
+price_type_for_ema: "hl2"        # hl2 | ohlc4 | close
+volatility_period: 24            # период для расчёта волатильности (свечи)
+volatility_type: "mad"           # mad (среднее абс. отклонение) | std
+
+# ─── Сетка ─────────────────────────────────────────────────────────────────
+num_levels_up: 5
+num_levels_down: 5
+grid_multiplier: 0.5             # базовый множитель шага (от σ)
+level_distribution: "fibonacci"  # uniform | fibonacci
+adaptive_levels_count: true      # сокращать уровни если не вмещаются в 3σ
+
+adaptive_step:
+  enabled: false
+  short_period: 1
+  long_period: 24
+  ratio_threshold_high: 1.2
+  multiplier_high: 1.5
+  ratio_threshold_low: 0.8
+  multiplier_low: 0.7
+
+# ─── Управление позициями ──────────────────────────────────────────────────
+position_sizing: "fixed"         # fixed | percent
+position_size_fixed: 200.0       # USDT на уровень (при fixed)
+position_size_percent: 2.0       # % от капитала на уровень (при percent)
+max_positions_per_side: 3        # макс. позиций в одном направлении
+
+zscore_sizing: false
+zscore_scale_factor: 1.5
+zscore_max_factor: 2.0
+
+entry_confirmation: false
+confirmation_timeframe: "5m"     # таймфрейм подтверждения входа
+
+partial_tp:
+  enabled: false
+  levels:
+    - fraction: 0.3
+      at_ratio: 0.5
+    - fraction: 0.3
+      at_ratio: 0.8
+    # остаток 0.4 закроется на EMA
+
+# ─── Риск и стопы ──────────────────────────────────────────────────────────
+max_leverage: 2.0
+var_based_leverage: false
+max_loss_fraction: 0.05          # допустимый убыток: 5% от капитала
+stop_loss_multiplier: 3.5        # стоп при EMA ± 3.5σ
+trailing_stop: false
+time_stop_enabled: false
+max_hold_hours: 48
+
+# ─── Детектор аномалий ─────────────────────────────────────────────────────
+anomaly_detector:
+  enabled: false                     # true = проверять аномалии, false = отключить
+  volume_lookback_hours: 24
+  volume_spike_multiplier: 10.0
+  max_allowed_spread_pct: 0.5    # макс. bid-ask спред в %
+  volatility_spike_threshold: 3.0
+  auto_resume_minutes: 60
+
+# ─── Бэктестинг ────────────────────────────────────────────────────────────
+backtest:
+  taker_fee: 0.0005              # taker комиссия (0.05%)
+  slippage: 0.0002               # проскальзывание (0.02%)
+  initial_capital: 1000.0
+
+# ─── Технические параметры ─────────────────────────────────────────────────
+recalc_interval_minutes: 60      # интервал пересчёта сетки
+dry_run: true                    # true = не отправлять реальные ордера
+
+logging:
+  level: "INFO"
+  file: "bot.log"
+
+database: "trades.db"

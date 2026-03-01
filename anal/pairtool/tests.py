@@ -151,10 +151,15 @@ def half_life(spread: pd.Series) -> Optional[float]:
     delta = s.diff().dropna()
     lagged = s.shift(1).dropna().loc[delta.index]
     model = sm.OLS(delta, sm.add_constant(lagged)).fit()
+    if len(model.params) < 2:
+        return None
     phi = float(model.params.iloc[1])
     if 1 + phi <= 0:
         return None
-    return float(-np.log(2) / np.log(1 + phi))
+    hl = float(-np.log(2) / np.log(1 + phi))
+    if not np.isfinite(hl):
+        return None
+    return hl
 
 
 def hurst_exponent(series: pd.Series, max_lag: int = 100) -> Optional[float]:
