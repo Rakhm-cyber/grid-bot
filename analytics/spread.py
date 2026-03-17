@@ -6,8 +6,7 @@ import glob
 import os
 
 # Папка с CSV
-data_folder = "C:/Users/nice-/Documents/projects/grid-bot/data/binance" ##  поменять название папки, у меня все наебнулось, запускается так
-
+data_folder = "../data/binance" 
 # Загружаем все CSV
 files = glob.glob(os.path.join(data_folder, "*.csv"))
 dfs = {}
@@ -20,7 +19,7 @@ for file in files:
 
 # Все возможные пары
 all_pairs = list(combinations(dfs.keys(), 2))
-
+print('Все возможные пары')
 results = []
 
 for sym1, sym2 in all_pairs:
@@ -82,5 +81,4 @@ adf_df['score'] = adf_df['score'] / sum(weights_dict.values())
 
 # Сохраняем
 adf_df_final = adf_df.sort_values(by = 'score', ascending = False)
-adf_df_final.to_excel("RES1.xlsx", index=False)
-print("Готово! Результат в Test.xlsx")
+adf_df_final.to_excel("spread.xlsx", index=False)
